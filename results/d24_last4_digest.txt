@@ -1,0 +1,7 @@
+# The four depth-5 sub-shards that were still open after the 64-way refinement, each split 36 ways
+# at depth 6 (144 leaves).  Columns: shard sub leaves sum(sub2mine) sub2cnt submine subcnt splitcnt
+1917/2048 45/64 36 15718 15718 73 4656 18302
+1917/2048 47/64 36 19423 19423 73 4656 18302
+1917/2048 59/64 36 16684 16684 72 4656 18302
+2017/2048 43/64 36  4356  4356 51 3269 18302
+# all 144 leaves: max value 8, 276934 nodes, 19931 CPU-seconds
