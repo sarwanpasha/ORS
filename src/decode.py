@@ -17,9 +17,11 @@ for tok in re.findall(r"^v (.*)$", txt, re.M):
         v = int(w)
         if v: val[abs(v)] = v > 0
 
-Aj = [sorted(x for x in range(K) if val.get(A[j][x])) for j in range(T)]
-Bj = [sorted(y for y in range(K) if val.get(B[j][y])) for j in range(T)]
-Nj = [{x: y for x in range(K) for y in range(K) if val.get(N[j][x][y])} for j in range(T)]
+def lit(v):   # a negative id in the map means "negation of that variable" (used by gen_cnf_d.py)
+    return bool(val.get(v)) if v > 0 else not val.get(-v, False)
+Aj = [sorted(x for x in range(K) if lit(A[j][x])) for j in range(T)]
+Bj = [sorted(y for y in range(K) if lit(B[j][y])) for j in range(T)]
+Nj = [{x: y for x in range(K) for y in range(K) if lit(N[j][x][y])} for j in range(T)]
 
 ok = True
 for j in range(T):
