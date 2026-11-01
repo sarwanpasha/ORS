@@ -33,6 +33,41 @@ def cubes(K):
 def masks(K):
     return [sum(1 << i for i in c) for c in itertools.combinations(range(K), K // 2)]
 
+def _canon(atoms, H):
+    """All sets with exactly H elements that meet every atom in an initial segment (ascending)."""
+    out = []
+    def rec(i, left, acc):
+        if i == len(atoms):
+            if left == 0: out.append(acc)
+            return
+        rest = sum(len(a) for a in atoms[i + 1:])
+        for c in range(0, min(len(atoms[i]), left) + 1):
+            if left - c <= rest:
+                rec(i + 1, left - c, acc | sum(1 << x for x in atoms[i][:c]))
+    rec(0, H, 0)
+    return out
+
+def sym_children(K, leaf):
+    """Children of a leaf under the symmetry-reduced split (option --sym).
+    After step 1 (A1=B1=P, N1=id) and step 2 (A2,B2 fixed by the cube), the remaining symmetry is
+    (sigma on rows, tau on columns) with sigma(P)=P, tau(P)=P, tau|P = sigma|P, sigma(A2)=A2,
+    tau(B2)=B2, and, once A3 is fixed, sigma(A3)=A3.  Hence sigma may permute freely inside each
+    row atom: on P the classes of membership in (A2, B2[, A3]); on the complement of P the classes
+    of membership in (A2[, A3]).  A_{j+1} can therefore be taken to meet every such atom in an
+    initial segment, which is an exhaustive (sound) split up to symmetry."""
+    H = K // 2
+    av, b1, b2, b3 = leaf[:4]
+    P = set(range(H))
+    A2 = set(range(av)) | set(range(H, H + (H - av)))
+    B2 = set(range(b1)) | set(range(av, av + b2)) | set(range(H, H + b3))
+    fixed = [A2] + [set(x for x in range(K) if (m >> x) & 1) for m in leaf[4:]]
+    def sig(x):
+        if x in P: return (0, x in A2, x in B2) + tuple(x in F for F in fixed[1:])
+        return (1,) + tuple(x in F for F in fixed)
+    groups = {}
+    for x in range(K): groups.setdefault(sig(x), []).append(x)
+    return _canon([groups[k] for k in sorted(groups)], H)
+
 def solve(job):
     K, T, leaf, timeout, solver = job
     with tempfile.TemporaryDirectory() as d:
@@ -58,6 +93,7 @@ def main():
     p.add_argument("--solver", default="kissat")
     p.add_argument("--shard", type=int, default=0); p.add_argument("--nshards", type=int, default=1)
     p.add_argument("--workdir", default="run_k{K}_t{T}")
+    p.add_argument("--sym", action="store_true", help="split levels 2-3 only over symmetry classes of A_3, A_4")
     o = p.parse_args()
     K, T = o.K, o.T
     tl = [int(x) for x in o.timeouts.split(",")]
@@ -87,7 +123,7 @@ def main():
             if not open_:
                 break
             if lev < 2:
-                level = [l + (m,) for l in open_ for m in M]
+                level = [l + (m,) for l in open_ for m in (sym_children(K, l) if o.sym else M)]
         open_ = [l for l in level if done.get(l) != "UNSAT"]
     if not open_:
         print("RESULT: UNSAT -- no fresh schedule of order %d and length %d%s" %
