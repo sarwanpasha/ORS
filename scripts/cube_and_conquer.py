@@ -4,7 +4,8 @@
 Level 1  fixes step 2 to one canonical representative (a,b1,b2,b3) of each orbit under the
          stabiliser of the (already fixed) step 1  -- see src/gen_cnf.py.
 Level 2  splits every level-1 cube that timed out by fixing A_3 to each of the C(K,K/2) sets.
-Level 3  splits every level-2 sub-instance that timed out by fixing A_4 the same way.
+Level 3  splits every level-2 sub-instance that timed out by fixing A_4 the same way, and so on
+         for as many levels as --timeouts has entries.
 Levels 2 and 3 are plain exhaustive case splits (every schedule has *some* A_3, A_4), so the
 instance is UNSAT iff every leaf is UNSAT, and SAT as soon as one leaf is SAT.
 
@@ -89,7 +90,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("K", type=int); p.add_argument("T", type=int)
     p.add_argument("--jobs", type=int, default=os.cpu_count())
-    p.add_argument("--timeouts", default="600,1800,7200", help="per-leaf seconds for levels 1,2,3")
+    p.add_argument("--timeouts", default="600,1800,7200", help="per-leaf seconds for levels 1,2,3,...; the number of entries is the number of levels")
     p.add_argument("--solver", default="kissat")
     p.add_argument("--shard", type=int, default=0); p.add_argument("--nshards", type=int, default=1)
     p.add_argument("--workdir", default="run_k{K}_t{T}")
@@ -106,7 +107,7 @@ def main():
     M = masks(K)
     level = [c for i, c in enumerate(cubes(K)) if i % o.nshards == o.shard]
     with Pool(o.jobs) as pool:
-        for lev in range(3):
+        for lev in range(len(tl)):
             todo = [l for l in level if done.get(l) not in ("SAT", "UNSAT")]
             print("level %d: %d leaves (%d already decided)" % (lev + 1, len(level), len(level) - len(todo)), flush=True)
             jobs = [(K, T, l, tl[lev], o.solver) for l in todo]
@@ -122,7 +123,7 @@ def main():
             open_ = [l for l in level if done.get(l) == "TIMEOUT"]
             if not open_:
                 break
-            if lev < 2:
+            if lev < len(tl) - 1:
                 level = [l + (m,) for l in open_ for m in (sym_children(K, l) if o.sym else M)]
         open_ = [l for l in level if done.get(l) != "UNSAT"]
     if not open_:
