@@ -27,8 +27,7 @@ import sys, json
 K = int(sys.argv[1]); T = int(sys.argv[2])
 out = sys.argv[3] if len(sys.argv) > 3 else "k%dt%d.cnf" % (K, T)
 cube = tuple(int(v) for v in sys.argv[4:8]) if len(sys.argv) > 7 else None
-a3   = int(sys.argv[8]) if len(sys.argv) > 8 else None   # optional bitmask fixing A_3
-a4   = int(sys.argv[9]) if len(sys.argv) > 9 else None   # optional bitmask fixing A_4
+fixA = [int(v) for v in sys.argv[8:]]   # optional bitmasks fixing A_3, A_4, A_5, ... in order
 H = K // 2
 nv = 0
 def new():
@@ -101,15 +100,14 @@ if cube is not None and T > 1:
         cls.append([a[1][x]] if x in A2 else [-a[1][x]])
         cls.append([b[1][x]] if x in B2 else [-b[1][x]])
 
-# Optional second-level split: fix A_3 to an explicit set.  Ranging over all
+# Optional deeper split: fix A_3 (and then A_4, A_5, ...) to explicit sets.  Ranging over all
 # K/2-subsets is an exhaustive case split (every schedule has some A_3), sound
 # with no symmetry argument at all -- it just makes each subproblem far easier.
-if a3 is not None and T > 2:
-    for x in range(K):
-        cls.append([a[2][x]] if (a3 >> x) & 1 else [-a[2][x]])
-if a4 is not None and T > 3:
-    for x in range(K):
-        cls.append([a[3][x]] if (a4 >> x) & 1 else [-a[3][x]])
+for k, mask in enumerate(fixA):
+    j = 2 + k
+    if j < T:
+        for x in range(K):
+            cls.append([a[j][x]] if (mask >> x) & 1 else [-a[j][x]])
 
 with open(out, "w") as f:
     f.write("p cnf %d %d\n" % (nv, len(cls)))
